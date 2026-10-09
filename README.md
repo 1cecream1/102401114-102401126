@@ -1,15 +1,6 @@
 # 校园失物招领（Campus Lost & Found）
 
-> **结对作业二 · 福州大学 2026 软件工程实践**
->
-> | 项 | 内容 |
-> | --- | --- |
-> | 作业链接 | https://edu.cnblogs.com/campus/fzu/2026-01SoftwareEngineeringandSoftwareEngineeringPractice/homework/16745 |
-> | 结对学号 | **102401114** 颜俊宇　·　**102401126** 　`<!-- 队友姓名待补 -->` |
-> | 仓库地址 | https://github.com/1cecream1/102401114-102401126 |
-> | 技术形态 | 原生 HTML / CSS / JavaScript，**零依赖、零构建**，双击 `index.html` 即可运行 |
 
----
 
 ## 一、项目介绍
 
