@@ -3,7 +3,7 @@
  *
  * 【实现】逐字段给出中文错误文案，页面层按 errors 的键逐项标红。
  *   覆盖：类型枚举 / 名称必填与长度 / 分类枚举 / 地点枚举 / 描述长度 /
- *        丢失时间必填与长度 / 联系方式必填与长度。
+ *        丢失时间必填与长度 / 联系方式必填与长度 / 悬赏金额（选填，1~200 整数）。
  *   长度上限一律从 Constant.LIMITS 取，与 index.html 上 input 的 maxlength 一致
  *   —— 正常手输到不了上限，这两条是防「程序化写入 / 粘贴绕过」的兜底。
  *
@@ -78,6 +78,18 @@
     const description = text(d.description);
     if (description.length > C.LIMITS.description) {
       errors.description = tooLong('物品描述', description, C.LIMITS.description);
+    }
+
+    // 悬赏金额：选填。空串 / null / 0 都视为「不设悬赏」；填了就必须是 1~200 的整数。
+    // 表单传进来的是字符串，这里先 Number() 再走统一判据；非法字符串会得到 NaN，同样被判 false。
+    const raw = d.rewardAmount;
+    if (raw !== undefined && raw !== null && raw !== '' && raw !== 0) {
+      const n = (typeof raw === 'number') ? raw : Number(String(raw).trim());
+      if (!C.isValidAmount(n)) {
+        errors.rewardAmount = C.TEXT.errReward
+          .replace('{min}', C.AMOUNT_LIMIT.min)
+          .replace('{max}', C.AMOUNT_LIMIT.max);
+      }
     }
 
     return {

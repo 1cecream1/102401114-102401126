@@ -8,6 +8,10 @@
  *   · 进行中 16 条 / 已完结 8 条
  *   · 3 小时内新发布（验「刚刚 / 小时前」）与超过 30 天的过时信息（验 E6 过时提示）
  *   · 浏览量从 7 到 88 不等（验「最多浏览」排序有区分度）
+ *   · 悬赏：3 条寻物帖带 rewardAmount（校园卡 20 / 蓝牙耳机 50 / 保温水杯 10），
+ *           首页卡片与详情页都能演示 🎁 徽章；其余寻物帖为 0
+ *   · 打赏：2 条招领帖带 tips —— 本人发布的「黑色雨伞」2 条（演示打赏墙），
+ *           他人发布的「篮球」1 条（演示「打赏入口 + 已有打赏」同时出现）
  *
  * 【导出】Seed.samples(ownerId)
  *   ownerId = 当前浏览器的发布者标识。**前 3 条以它作为 ownerId**（契约，勿改），
@@ -50,17 +54,22 @@
       { mine: true,  type: C.TYPE.LOST,  name: '校园卡', category: '证件卡类', place: '图书馆',
         lostTime: '10月9日 下午', agoMs: 3 * HOUR, lostBeforeMs: 2 * HOUR,
         description: '白色卡套，姓名李**，卡号尾号 3721。在三楼自习区靠窗的位置丢的，捡到的同学麻烦联系我。',
-        contact: '微信 lixx_2024', status: C.STATUS.OPEN, views: 42 },
+        contact: '微信 lixx_2024', status: C.STATUS.OPEN, views: 42, rewardAmount: 20 },
 
       { mine: true,  type: C.TYPE.FOUND, name: '黑色雨伞', category: '日用品', place: '食堂',
         lostTime: '10月8日 中午', agoMs: 1 * DAY, lostBeforeMs: 3 * HOUR,
         description: '伞柄上挂着一只小黄鸭挂件，应该是一楼窗口附近落下的，已交给出餐台阿姨。',
-        contact: 'QQ 1234567（备注失物）', status: C.STATUS.DONE, views: 15, closedAfterMs: 5 * HOUR },
+        contact: 'QQ 1234567（备注失物）', status: C.STATUS.DONE, views: 15, closedAfterMs: 5 * HOUR,
+        // 本人发布的招领帖已收到 2 次打赏：进详情页就能演示打赏墙
+        tips: [
+          { id: 'seed-tip-1', amount: 10, note: '太感谢了，已经取回', at: now - 8 * HOUR },
+          { id: 'seed-tip-2', amount: 5,  note: '',                 at: now - 5 * HOUR }
+        ] },
 
       { mine: true,  type: C.TYPE.LOST,  name: '蓝牙耳机', category: '电子产品', place: '体育场',
         lostTime: '10月9日 上午', agoMs: 5 * HOUR, lostBeforeMs: 1 * HOUR,
         description: '白色充电盒，盒盖内侧贴了一张小熊贴纸。跑完步发现不见了，范围应该在看台东侧。',
-        contact: '138-0000-1234', status: C.STATUS.OPEN, views: 88 },
+        contact: '138-0000-1234', status: C.STATUS.OPEN, views: 88, rewardAmount: 50 },
 
       { mine: false, type: C.TYPE.LOST,  name: '宿舍钥匙', category: '钥匙门禁', place: '宿舍楼',
         lostTime: '9月6日 上午', agoMs: 33 * DAY, lostBeforeMs: 2 * HOUR,
@@ -75,7 +84,7 @@
       { mine: false, type: C.TYPE.LOST,  name: '保温水杯', category: '日用品', place: '校车站',
         lostTime: '10月9日 下午', agoMs: 30 * MINUTE, lostBeforeMs: 20 * MINUTE,
         description: '银灰色 500ml 保温杯，杯身上有一道浅浅的划痕，等车的时候放在长椅上忘了拿。',
-        contact: '微信 cup_back', status: C.STATUS.OPEN, views: 7 },
+        contact: '微信 cup_back', status: C.STATUS.OPEN, views: 7, rewardAmount: 10 },
 
       /* ---------- 第 7~14 条：补齐证件卡类 / 运动器材 / 服饰饰品 / 校道 / 快递点 ---------- */
       { mine: false, type: C.TYPE.LOST,  name: '学生证', category: '证件卡类', place: '教学楼',
@@ -86,7 +95,11 @@
       { mine: false, type: C.TYPE.FOUND, name: '篮球', category: '运动器材', place: '体育场',
         lostTime: '10月8日 傍晚', agoMs: 20 * HOUR, lostBeforeMs: 6 * HOUR,
         description: '斯伯丁的球，上面用马克笔写了个「3」，应该是打完球忘在篮球架底下的，先放在体育馆器材室。',
-        contact: 'QQ 3344556', status: C.STATUS.OPEN, views: 26 },
+        contact: 'QQ 3344556', status: C.STATUS.OPEN, views: 26,
+        // 他人发布的招领帖：演示「打赏入口 + 已有打赏墙」同时出现
+        tips: [
+          { id: 'seed-tip-3', amount: 5, note: '谢谢同学', at: now - 3 * HOUR }
+        ] },
 
       { mine: true,  type: C.TYPE.LOST,  name: '平板保护套', category: '电子产品', place: '图书馆',
         lostTime: '10月5日 下午', agoMs: 4 * DAY, lostBeforeMs: 3 * HOUR,
@@ -189,6 +202,11 @@
         contact: r.contact,
         status: r.status,
         views: r.views,
+        // 悬赏只有寻物帖有意义；打赏记录逐条拷贝，避免示例常量被页面层改坏
+        rewardAmount: r.type === C.TYPE.LOST ? (r.rewardAmount || 0) : 0,
+        tips: Array.isArray(r.tips)
+          ? r.tips.map(function (t) { return Object.assign({}, t); })
+          : [],
         createdAt: createdAt,
         updatedAt: closedAt || createdAt,
         closedAt: closedAt

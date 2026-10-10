@@ -232,6 +232,114 @@ describe('ItemStore.update() / remove()', function () {
 
 });
 
+describe('ItemStore.addTip()', function () {
+
+  let target;
+  beforeEach(function () {
+    ItemStore.reset();
+    target = ItemStore.save(validForm({ name: '打赏目标', type: C.TYPE.FOUND }));
+  });
+
+  it('追加成功返回整条记录，tips 条数 +1', function () {
+    const tip = { id: 't1', amount: 10, note: '谢谢', at: Date.now() };
+    const saved = ItemStore.addTip(target.id, tip);
+    expect(saved.tips).to.have.lengthOf(1);
+    expect(saved.tips[0]).to.deep.equal(tip);
+  });
+
+  it('追加后会落盘（重新 getById 也在）', function () {
+    ItemStore.addTip(target.id, { id: 't2', amount: 5, note: '', at: Date.now() });
+    expect(ItemStore.getById(target.id).tips).to.have.lengthOf(1);
+  });
+
+  it('连续追加不丢记录（不会被「读旧副本再覆盖」冲掉）', function () {
+    for (let i = 0; i < 3; i++) {
+      ItemStore.addTip(target.id, { id: 't' + i, amount: 2, note: '', at: Date.now() });
+    }
+    expect(ItemStore.getById(target.id).tips).to.have.lengthOf(3);
+  });
+
+  it('新加的记录排在数组末尾（页面层自行反转后展示最新在上）', function () {
+    ItemStore.addTip(target.id, { id: 'first', amount: 2, note: '', at: 1 });
+    ItemStore.addTip(target.id, { id: 'second', amount: 5, note: '', at: 2 });
+    const tips = ItemStore.getById(target.id).tips;
+    expect(tips[0].id).to.equal('first');
+    expect(tips[1].id).to.equal('second');
+  });
+
+  it('返回的是拷贝：改它不影响已落盘的数据', function () {
+    const saved = ItemStore.addTip(target.id, { id: 't3', amount: 5, note: '', at: Date.now() });
+    saved.tips[0].amount = 999;
+    expect(ItemStore.getById(target.id).tips[0].amount).to.equal(5);
+  });
+
+  it('不存在的 id 返回 null；非法 tip 不抛异常', function () {
+    expect(ItemStore.addTip('根本不存在的 id', { id: 'x', amount: 1 })).to.equal(null);
+    expect(ItemStore.addTip(target.id, null)).to.equal(null);
+    expect(ItemStore.addTip(target.id, 'x')).to.equal(null);
+    expect(ItemStore.addTip(null, { id: 'x' })).to.equal(null);
+  });
+
+  it('记录缺 tips 字段时也能正常追加（从旧版本数据升级上来）', function () {
+    withFakeStorage(makeFakeStorage(), function (store) {
+      store.getAll();                                  // 触发首次灌入
+      // 模拟旧版本数据：把某条记录里的 tips 字段整个抹掉
+      const raw = JSON.parse(globalThis.localStorage.getItem(C.STORAGE_KEY));
+      const victim = raw.filter(function (it) { return it.type === C.TYPE.FOUND; })[0];
+      delete victim.tips;
+      globalThis.localStorage.setItem(C.STORAGE_KEY, JSON.stringify(raw));
+
+      const saved = store.addTip(victim.id, { id: 't', amount: 5, note: '', at: 1 });
+      expect(saved.tips).to.have.lengthOf(1);
+      expect(store.getById(victim.id).tips).to.have.lengthOf(1);
+    });
+  });
+
+  it('tips 是「非数组」的脏数据时，追加会自愈成数组', function () {
+    withFakeStorage(makeFakeStorage(), function (store) {
+      store.getAll();
+      const raw = JSON.parse(globalThis.localStorage.getItem(C.STORAGE_KEY));
+      const victim = raw.filter(function (it) { return it.type === C.TYPE.FOUND; })[0];
+      victim.tips = '坏数据';
+      globalThis.localStorage.setItem(C.STORAGE_KEY, JSON.stringify(raw));
+
+      const saved = store.addTip(victim.id, { id: 't', amount: 5, note: '', at: 1 });
+      expect(Array.isArray(saved.tips)).to.equal(true);
+      expect(saved.tips).to.have.lengthOf(1);
+    });
+  });
+
+});
+
+describe('ItemStore.save() 对悬赏 / 打赏字段的兜底', function () {
+
+  beforeEach(function () { ItemStore.reset(); });
+
+  it('缺字段时补 tips: [] 与 rewardAmount: 0', function () {
+    const saved = ItemStore.save(validForm());
+    expect(saved.tips).to.deep.equal([]);
+    expect(saved.rewardAmount).to.equal(0);
+  });
+
+  it('非法 rewardAmount 一律归 0（小数 / 越界 / 字符串 / 负数）', function () {
+    expect(ItemStore.save(validForm({ rewardAmount: 1.5 })).rewardAmount).to.equal(0);
+    expect(ItemStore.save(validForm({ rewardAmount: 999 })).rewardAmount).to.equal(0);
+    expect(ItemStore.save(validForm({ rewardAmount: '20' })).rewardAmount).to.equal(0);
+    expect(ItemStore.save(validForm({ rewardAmount: -5 })).rewardAmount).to.equal(0);
+  });
+
+  it('合法 rewardAmount 原样保留', function () {
+    expect(ItemStore.save(validForm({ rewardAmount: 20 })).rewardAmount).to.equal(20);
+    expect(ItemStore.save(validForm({ rewardAmount: 200 })).rewardAmount).to.equal(200);
+  });
+
+  it('tips 传非数组时归零成空数组', function () {
+    expect(ItemStore.save(validForm({ tips: '不是数组' })).tips).to.deep.equal([]);
+    expect(ItemStore.save(validForm({ tips: null })).tips).to.deep.equal([]);
+  });
+
+});
+
 describe('ItemStore.isOwner() 与 reset()', function () {
 
   beforeEach(function () { ItemStore.reset(); });

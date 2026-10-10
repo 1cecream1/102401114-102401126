@@ -12,11 +12,12 @@
 const { expect } = require('chai');
 const { Constant: C, Seed, ItemStore, SEED, countBy } = require('./helpers/fixtures');
 
-// seed.js 文件头声明、且页面层依赖的 15 个字段
+// seed.js 文件头声明、且页面层依赖的 17 个字段
 const FIELDS = [
   'id', 'ownerId', 'type', 'name', 'category', 'place',
   'lostTime', 'lostAt', 'description', 'contact',
-  'status', 'views', 'createdAt', 'updatedAt', 'closedAt'
+  'status', 'views', 'createdAt', 'updatedAt', 'closedAt',
+  'rewardAmount', 'tips'
 ];
 
 describe('Seed 示例数据', function () {
@@ -27,7 +28,7 @@ describe('Seed 示例数据', function () {
     expect(samples).to.be.an('array').with.lengthOf(SEED.TOTAL);
   });
 
-  it('每条都带齐 15 个字段（页面层不用做存在性判断）', function () {
+  it('每条都带齐 17 个字段（页面层不用做存在性判断）', function () {
     samples.forEach(function (it) {
       FIELDS.forEach(function (f) {
         expect(it, '缺少字段 ' + f).to.have.property(f);
@@ -117,6 +118,53 @@ describe('Seed 示例数据', function () {
   it('浏览量有区分度（「最多浏览」排序才排得出差别）', function () {
     const views = samples.map(function (it) { return it.views; });
     expect(new Set(views).size).to.be.at.least(10);
+  });
+
+  it('至少一条寻物帖带悬赏（首页与详情页要能演示悬赏）', function () {
+    expect(samples.some(function (it) {
+      return it.type === C.TYPE.LOST && it.rewardAmount > 0;
+    })).to.equal(true);
+  });
+
+  it('悬赏只挂在寻物帖上：招领帖恒为 0，其余为 0 或区间内的整数', function () {
+    samples.filter(function (it) { return it.type === C.TYPE.FOUND; }).forEach(function (it) {
+      expect(it.rewardAmount).to.equal(0);
+    });
+    samples.forEach(function (it) {
+      expect(C.isValidAmount(it.rewardAmount) || it.rewardAmount === 0).to.equal(true);
+    });
+  });
+
+  it('至少一条招领帖有打赏记录，且打赏只出现在招领帖上', function () {
+    const withTips = samples.filter(function (it) { return it.tips.length > 0; });
+    expect(withTips).to.have.lengthOf.at.least(1);
+    withTips.forEach(function (it) {
+      expect(it.type).to.equal(C.TYPE.FOUND);
+    });
+  });
+
+  it('打赏记录结构合法：id / amount / note / at，金额在区间内、留言不超上限、时间不晚于此刻', function () {
+    const now = Date.now();
+    samples.forEach(function (it) {
+      expect(it.tips).to.be.an('array');
+      it.tips.forEach(function (t) {
+        expect(t.id).to.be.a('string').and.not.to.equal('');
+        expect(C.isValidAmount(t.amount)).to.equal(true);
+        expect(t.note).to.be.a('string');
+        expect(t.note.length).to.be.at.most(C.LIMITS.tipNote);
+        expect(t.at).to.be.a('number');
+        expect(t.at).to.be.at.most(now);
+      });
+    });
+  });
+
+  it('示例数据里 tips 是逐条拷贝（改一份不影响下一次 samples()）', function () {
+    const first = Seed.samples(ItemStore.getOwnerId());
+    first.forEach(function (it) { it.tips.forEach(function (t) { t.amount = 99999; }); });
+    const second = Seed.samples(ItemStore.getOwnerId());
+    second.forEach(function (it) {
+      it.tips.forEach(function (t) { expect(t.amount).to.not.equal(99999); });
+    });
   });
 
   it('所有文本字段都没超长度上限', function () {

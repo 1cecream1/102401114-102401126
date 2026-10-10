@@ -135,4 +135,30 @@ describe('Validate 表单校验', function () {
     expect(r.errors).to.be.an('object');
   });
 
+  it('悬赏金额是选填：不填 / null / 空串 / 0 都通过，且不产生 rewardAmount 键', function () {
+    [undefined, null, '', 0].forEach(function (v) {
+      const r = Validate.validateItem(validForm({ rewardAmount: v }));
+      expect(r.valid, 'rewardAmount=' + JSON.stringify(v)).to.equal(true);
+      expect(r.errors).to.not.have.property('rewardAmount');
+    });
+  });
+
+  it('悬赏金额边界：' + C.AMOUNT_LIMIT.min + ' / ' + C.AMOUNT_LIMIT.max + ' 通过', function () {
+    expect(Validate.validateItem(validForm({ rewardAmount: C.AMOUNT_LIMIT.min })).valid).to.equal(true);
+    expect(Validate.validateItem(validForm({ rewardAmount: C.AMOUNT_LIMIT.max })).valid).to.equal(true);
+  });
+
+  it('悬赏金额越界 / 小数 / 负数 / 非数字字符串 报 errors.rewardAmount', function () {
+    [C.AMOUNT_LIMIT.max + 1, 1.5, -5, 'abc'].forEach(function (v) {
+      const r = Validate.validateItem(validForm({ rewardAmount: v }));
+      expect(r.errors, 'rewardAmount=' + JSON.stringify(v)).to.have.property('rewardAmount');
+      expect(r.errors.rewardAmount).to.contain(String(C.AMOUNT_LIMIT.max));   // 提示里带区间
+    });
+  });
+
+  it('悬赏金额传数字字符串 "20" 也能通过（表单拿到的就是字符串）', function () {
+    expect(Validate.validateItem(validForm({ rewardAmount: '20' })).valid).to.equal(true);
+    expect(Validate.validateItem(validForm({ rewardAmount: ' 20 ' })).valid).to.equal(true);
+  });
+
 });

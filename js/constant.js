@@ -67,6 +67,13 @@
   const REVOKE_LABEL = '撤销完结';
   const DELETE_LABEL = '删除';
 
+  /* ---------- 三·补、打赏与悬赏 ----------
+   * 悬赏 = 失主发布寻物帖时承诺的奖励（纯展示）；打赏 = 访客在招领帖详情页的记录。
+   * 两者共用同一套金额判据 isValidAmount，避免页面层各处各写一份。
+   */
+  const TIP_AMOUNTS = Object.freeze([2, 5, 10, 20]);            // 打赏弹层固定档位（元）
+  const AMOUNT_LIMIT = Object.freeze({ min: 1, max: 200 });     // 悬赏 / 打赏共用区间：整数元
+
   /* ---------- 四、分类 category（8 类） ---------- */
   const CATEGORY = Object.freeze([
     '证件卡类', '钥匙门禁', '电子产品', '日用品',
@@ -106,7 +113,8 @@
     lostTime: 20,   // 丢失/拾获时间 ≤20 字
     description: 200,
     contactMin: 3,
-    contactMax: 60
+    contactMax: 60,
+    tipNote: 20     // 打赏留言 ≤20 字
   });
 
   /* ---------- 八、文案字典 ---------- */
@@ -140,6 +148,30 @@
 
     similarTip: '库里有 {n} 条同类的招领信息，可能已被捡到，先去看看？',
 
+    // —— 悬赏（寻物帖发布时填写，纯展示）——
+    rewardBadge: '🎁 悬赏 ¥{amount}',
+    rewardFieldLabel: '悬赏金额（选填）',
+    rewardFieldHint: '物品找回后自愿兑现，仅作展示，不涉及线上支付',
+    rewardPlaceholder: '如 20（单位：元，1~200 整数）',
+    rewardDetail: '🎁 悬赏 ¥{amount}，找回后自愿兑现',
+    errReward: '悬赏金额需为 {min}~{max} 的整数',
+
+    // —— 打赏（招领帖详情页，落本地记录）——
+    tipButton: '🎁 打赏拾金不昧者',
+    tipPanelTitle: '打赏拾金不昧者',
+    tipPanelSub: '心意随喜，不与物品价值挂钩',
+    tipCustomPlaceholder: '自定义金额',
+    tipNotePlaceholder: '留句话（选填，≤20 字）',
+    tipConfirm: '确认打赏',
+    tipSuccess: '打赏成功，谢谢你的善意',
+    tipWallTitle: '收到的打赏',
+    tipWallEmpty: '还没有人打赏',
+    tipWallEmptySub: '把这条转发给失主，让 TA 看到',
+    tipSummary: '共 {n} 次 · ¥{amount}',
+    tipRecordNote: '未留言',
+    tipDemoNote: '演示：打赏仅在本机记录，不涉及真实支付',
+    errTipAmount: '请选择或输入 {min}~{max} 之间的整数金额',
+
     confirmClose: '确定标记为「{label}」吗？标记后列表和详情都会同步更新。',
     confirmDelete: '删除后无法恢复，确定删除这条信息吗？',
     confirmReset: '将清空本机全部数据并恢复 24 条示例信息，确定继续吗？',
@@ -170,6 +202,10 @@
   const isValidCategory = v => CATEGORY.indexOf(v) !== -1;
   const isValidPlace    = v => PLACE.indexOf(v) !== -1;
   const isValidSort     = v => SORT_OPTIONS.some(o => o.value === v);
+  // 金额：必须是非 NaN 的整数，且落在 AMOUNT_LIMIT 区间内。
+  // 字符串 '20' / 小数 1.5 / 越界 201 / 空值 一律 false —— 页面层、validate.js、reward.js 共用这一个判据。
+  const isValidAmount   = v => typeof v === 'number' && isFinite(v)
+    && Math.floor(v) === v && v >= AMOUNT_LIMIT.min && v <= AMOUNT_LIMIT.max;
   // 只校验首页 tab（all/lost/found）。状态筛选那组请用 FILTER_ALL + isValidStatus()，
   // 用本函数会把 'open' 误判成非法。
   const isValidTabValue = v => v === FILTER_ALL || isValidType(v);
@@ -197,11 +233,14 @@
 
     SORT, SORT_OPTIONS, DEFAULT_SORT,
 
+    TIP_AMOUNTS, AMOUNT_LIMIT,
+
     LIMITS, TEXT, HOT_WORDS,
 
     isValidType, isValidStatus, isValidCategory, isValidPlace, isValidSort,
     isValidTabValue, getCategoryIcon, getTypeLabel, getStatusLabel, getDoneLabel,
-    getPostTab, getTypeTab, findByValue
+    getPostTab, getTypeTab, findByValue,
+    isValidAmount
   });
 
   if (typeof module !== 'undefined' && module.exports) {

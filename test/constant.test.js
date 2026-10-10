@@ -16,8 +16,8 @@ const { Constant: C, JS_DIR } = require('./helpers/fixtures');
 
 describe('Constant 常量契约', function () {
 
-  it('导出键数量与约定一致（39 个）', function () {
-    expect(Object.keys(C)).to.have.lengthOf(39);
+  it('导出键数量与约定一致（42 个）', function () {
+    expect(Object.keys(C)).to.have.lengthOf(42);
   });
 
   it('枚举值齐全：类型 / 状态 / 排序', function () {
@@ -99,6 +99,37 @@ describe('Constant 常量契约', function () {
     expect(maxlengths).to.include(C.LIMITS.lostTime);
     expect(maxlengths).to.include(C.LIMITS.description);
     expect(maxlengths).to.include(C.LIMITS.contactMax);
+  });
+
+  it('打赏档位与金额区间：档位冻结、区间为 1~200 整数', function () {
+    expect(C.TIP_AMOUNTS).to.deep.equal([2, 5, 10, 20]);
+    expect(Object.isFrozen(C.TIP_AMOUNTS)).to.equal(true);
+    expect(C.AMOUNT_LIMIT).to.deep.equal({ min: 1, max: 200 });
+    expect(Object.isFrozen(C.AMOUNT_LIMIT)).to.equal(true);
+    // 每一档都必须自己合法，否则弹层会给出一个点下去就报错的选项
+    C.TIP_AMOUNTS.forEach(function (n) {
+      expect(C.isValidAmount(n), '档位 ¥' + n + ' 应该是合法金额').to.equal(true);
+    });
+  });
+
+  it('isValidAmount 边界：1 / 200 合法，越界、小数、字符串、空值一律非法', function () {
+    expect(C.isValidAmount(C.AMOUNT_LIMIT.min)).to.equal(true);
+    expect(C.isValidAmount(C.AMOUNT_LIMIT.max)).to.equal(true);
+    expect(C.isValidAmount(20)).to.equal(true);
+
+    expect(C.isValidAmount(0)).to.equal(false);
+    expect(C.isValidAmount(-1)).to.equal(false);
+    expect(C.isValidAmount(C.AMOUNT_LIMIT.max + 1)).to.equal(false);
+    expect(C.isValidAmount(1.5)).to.equal(false);
+    expect(C.isValidAmount('10')).to.equal(false);   // 字符串不算，页面层要显式 Number()
+    expect(C.isValidAmount(NaN)).to.equal(false);
+    expect(C.isValidAmount(Infinity)).to.equal(false);
+    expect(C.isValidAmount(null)).to.equal(false);
+    expect(C.isValidAmount(undefined)).to.equal(false);
+  });
+
+  it('打赏留言上限写进 LIMITS（与 index.html 的 maxlength 对齐）', function () {
+    expect(C.LIMITS.tipNote).to.equal(20);
   });
 
   it('常量集合被冻结，页面层改不动（防原地修改）', function () {

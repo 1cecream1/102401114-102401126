@@ -252,3 +252,78 @@ body {
   pointer-events: none; white-space: nowrap; z-index: 99;
 }
 .toast.show { opacity: 1; }
+
+/* ===== 悬赏 ===== */
+.badge-reward { background: #fff7e6; color: #d48806; }
+.badge-tip { background: #fff0f2; color: #e8607a; }
+.detail-reward {
+  background: #fff7e6; border-radius: var(--radius);
+  padding: 10px 12px; font-size: 13px; color: #d48806; margin-bottom: 12px;
+}
+.form-hint { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+
+/* ===== 打赏 ===== */
+.detail-tip-box { margin: 12px 0; }
+.btn-reward {
+  width: 100%; padding: 12px; border: none; border-radius: 22px;
+  background: linear-gradient(135deg, #ffb648, #ff976a); color: #fff;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.btn-reward:active { opacity: .9; }
+
+.tip-wall { background: #fff; border-radius: var(--radius); padding: 12px; margin-top: 10px; }
+.tip-wall-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 13px; font-weight: 600; margin-bottom: 8px;
+}
+.tip-wall-sum { font-size: 12px; font-weight: normal; color: #d48806; }
+.tip-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; padding: 7px 0; border-top: 1px dashed var(--border);
+}
+.tip-amt { color: #d48806; font-weight: 600; flex-shrink: 0; }
+.tip-note { flex: 1; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tip-at { color: var(--text-3); flex-shrink: 0; }
+.tip-wall-empty { color: var(--text-3); font-size: 12px; text-align: center; padding: 18px 12px; }
+.tip-wall-sub { margin-top: 4px; font-size: 11px; }
+.tip-demo-note { font-size: 11px; color: var(--text-3); text-align: center; margin-top: 8px; }
+
+/* ===== 打赏弹层 =====
+   遮罩用 absolute 而不是 fixed：整个 App 装在 .phone-shell（relative + overflow:hidden）里，
+   用 fixed 会突破手机壳、盖住外面整页。 */
+.tip-mask {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: flex-end; z-index: 100;
+}
+.tip-panel {
+  width: 100%; background: #fff;
+  border-radius: 16px 16px 0 0; padding: 18px 16px 22px;
+  animation: tipUp .22s ease-out;
+}
+@keyframes tipUp {
+  from { transform: translateY(30px); opacity: .6; }
+  to   { transform: none; opacity: 1; }
+}
+.tip-panel-head { text-align: center; margin-bottom: 14px; }
+.tip-panel-title { font-size: 16px; font-weight: 600; }
+.tip-panel-sub { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+
+.tip-amounts { display: flex; gap: 8px; margin-bottom: 10px; }
+.tip-amt-opt {
+  flex: 1; text-align: center; padding: 12px 0; border-radius: 10px;
+  background: #f4f5f7; font-size: 16px; font-weight: 600; color: var(--text-2);
+  cursor: pointer; border: 1.5px solid transparent;
+}
+.tip-amt-opt.on { background: #fff7e6; color: #d48806; border-color: #ffb648; }
+
+/* 注意：这里是 .tip-note-input（弹层输入框），不要和上一条打赏墙里的
+   .tip-note（留言文本 span）混用 —— 同名会让墙里的文字被套上输入框边框。 */
+.tip-custom, .tip-note-input {
+  width: 100%; border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; font-size: 14px; outline: none; margin-bottom: 8px; background: #fff;
+}
+.tip-custom:focus, .tip-note-input:focus { border-color: #ffb648; }
+
+.tip-panel-actions { display: flex; gap: 10px; margin-top: 6px; }
+.tip-panel-actions button { flex: 1; margin-top: 0; }

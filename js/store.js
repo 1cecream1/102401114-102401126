@@ -15,7 +15,7 @@
  * 【命名避坑】模块叫 ItemStore，不叫 Storage
  *   —— window.Storage 是浏览器内置构造函数，重名会让「模块是否就绪」的判断永远为真。
  *
- * 【导出】ItemStore.getOwnerId / getAll / save / getById / update / remove / isOwner / reset
+ * 【导出】ItemStore.getOwnerId / getAll / save / getById / update / addTip / remove / isOwner / reset
  *   空数据返回 []，查不到返回 null，非法输入一律兜底、不抛异常（这些兜底就是单测用例）。
  *
  * 【依赖】constant.js、seed.js（都必须先加载）
@@ -168,6 +168,8 @@
     if (!rec.ownerId) rec.ownerId = getOwnerId();
     if (!rec.status) rec.status = C.STATUS.OPEN;
     if (typeof rec.views !== 'number') rec.views = 0;
+    if (!Array.isArray(rec.tips)) rec.tips = [];                                   // 打赏记录，默认空
+    rec.rewardAmount = C.isValidAmount(rec.rewardAmount) ? rec.rewardAmount : 0;   // 悬赏金额，非法一律归 0
     rec.createdAt = rec.createdAt || now;
     rec.updatedAt = now;
     if (rec.status === C.STATUS.DONE) {
@@ -201,6 +203,25 @@
     return clone(rec);
   }
 
+  // 追加一条打赏记录。tip 由调用方（页面层经 reward.js）构造好，本方法只管
+  // 「读 → 追加 → 落盘」。独立成方法是为了避免页面层用 update() 覆盖整个 tips 数组时，
+  // 因为手里拿的是旧副本而把中间发生的记录冲掉。
+  function addTip(id, tip) {
+    if (!tip || typeof tip !== 'object') return null;
+
+    const list = ensure();
+    const idx = indexOfId(list, id);
+    if (idx === -1) return null;
+
+    const rec = list[idx];
+    if (!Array.isArray(rec.tips)) rec.tips = [];
+    rec.tips.push(tip);
+    rec.updatedAt = Date.now();
+
+    persist(list);
+    return clone(rec);
+  }
+
   function remove(id) {
     const list = ensure();
     const idx = indexOfId(list, id);
@@ -225,6 +246,7 @@
     save: save,
     getById: getById,
     update: update,
+    addTip: addTip,
     remove: remove,
     isOwner: isOwner,
     reset: reset

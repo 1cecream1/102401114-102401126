@@ -1,6 +1,6 @@
 /**
  * js/app.js —— 页面层：渲染 + 事件绑定
- * 只调用逻辑层（ItemStore / Validate / Search / Constant / Status），不直接碰 localStorage
+ * 只调用逻辑层（ItemStore / Validate / Search / Constant / Status / Reward），不直接碰 localStorage
  */
 (function () {
   'use strict';
@@ -17,7 +17,8 @@
     keyword: '',
     currentDetailId: null,
     lastPostedId: null,
-    contactRevealed: false
+    contactRevealed: false,
+    tipAmount: 0                         // 打赏弹层当前选中的金额（元）
   };
 
   /* ============ 工具函数 ============ */
@@ -143,13 +144,23 @@
       const typeCls = item.type === Constant.TYPE.LOST ? 'badge-lost' : 'badge-found';
       const typeLabel = item.type === Constant.TYPE.LOST ? '寻物' : '招领';
       const doneTag = item.status === Constant.STATUS.DONE ? '<span class="card-badge badge-done">已完结</span>' : '';
+      // 悬赏徽章：只有寻物帖且金额 > 0 才出现
+      const rewardTag = (item.type === Constant.TYPE.LOST && item.rewardAmount > 0)
+        ? '<span class="card-badge badge-reward">'
+            + Constant.TEXT.rewardBadge.replace('{amount}', item.rewardAmount) + '</span>'
+        : '';
+      // 打赏次数徽章：招领帖收到过打赏才出现
+      const tipCount = Reward.getTipTotal(item).count;
+      const tipTag = tipCount > 0
+        ? '<span class="card-badge badge-tip">💝 ' + tipCount + ' 次打赏</span>'
+        : '';
       card.innerHTML =
         '<div class="card">' +
           '<div class="card-thumb">' + Constant.getCategoryIcon(item.category) + '</div>' +
           '<div class="card-body">' +
             '<div class="card-title">' + escapeHtml(item.name) +
               '<span class="card-badge ' + typeCls + '" style="position:static;margin-left:6px">' + typeLabel + '</span>' +
-              doneTag +
+              doneTag + rewardTag + tipTag +
             '</div>' +
             '<div class="card-meta">📍 ' + escapeHtml(item.place) + ' · ' + escapeHtml(item.lostTime || '') + '<br>🕐 ' + fmtTime(item.createdAt) + ' · 👁 ' + (item.views || 0) + '</div>' +
             (isMineList
@@ -213,6 +224,11 @@
     $('#f-desc').placeholder = tab.descPlaceholder;
     $('#f-time').placeholder = tab.timePlaceholder;
 
+    // 悬赏只对「我丢了东西」有意义；切到招领时整块藏起来
+    const isLost = state.postType === Constant.TYPE.LOST;
+    $('#field-reward').classList.toggle('hidden', !isLost);
+    if (!isLost) $('#err-reward').textContent = '';
+
     // 分类 chip
     const catBox = $('#f-category');
     catBox.innerHTML = '';
@@ -245,7 +261,8 @@
     $('#f-desc').oninput = () => { $('#desc-count').textContent = $('#f-desc').value.length; };
 
     // 重新输入时立刻清掉该项的红色错误态：否则校验失败后改好了还一直红着，要再点一次发布才刷新
-    [['#f-name', '#err-name'], ['#f-time', '#err-time'], ['#f-contact', '#err-contact']]
+    [['#f-name', '#err-name'], ['#f-time', '#err-time'], ['#f-contact', '#err-contact'],
+     ['#f-reward', '#err-reward']]
       .forEach(([inputSel, errSel]) => {
         const input = $(inputSel);
         input.oninput = function () {
@@ -274,6 +291,7 @@
 
   $('#post-form').addEventListener('submit', function (e) {
     e.preventDefault();
+    const rewardRaw = $('#f-reward').value.trim();
     const data = {
       type: state.postType,
       name: $('#f-name').value.trim(),
@@ -281,7 +299,10 @@
       place: getSelectedChip('#f-place'),
       lostTime: $('#f-time').value.trim(),
       description: $('#f-desc').value.trim(),
-      contact: $('#f-contact').value.trim()
+      contact: $('#f-contact').value.trim(),
+      // 悬赏只有寻物帖才带；留空 = 不设悬赏
+      rewardAmount: (state.postType === Constant.TYPE.LOST && rewardRaw !== '')
+        ? Number(rewardRaw) : 0
     };
 
     const result = Validate.validateItem(data);
@@ -294,6 +315,8 @@
     $('#f-time').classList.toggle('err', !!result.errors.lostTime);
     $('#err-contact').textContent = result.errors.contact || '';
     $('#f-contact').classList.toggle('err', !!result.errors.contact);
+    $('#err-reward').textContent = result.errors.rewardAmount || '';
+    $('#f-reward').classList.toggle('err', !!result.errors.rewardAmount);
 
     if (!result.valid) { toast('请检查表单'); return; }
 
@@ -355,6 +378,10 @@
   function openDetail(id) {
     state.currentDetailId = id;
     state.contactRevealed = false;
+    // 浏览量只在这里 +1：放进 renderDetail() 的话，任何一次重渲染
+    //（查看联系方式、打赏、标记完结）都会再算一次，数字会虚高
+    const item = ItemStore.getById(id);
+    if (item) ItemStore.update(id, { views: (item.views || 0) + 1 });
     go('detail');
   }
 
@@ -365,13 +392,17 @@
       body.innerHTML = '<div class="empty-state"><div class="empty-icon">😕</div><div class="empty-title">这条信息不存在或已被删除</div></div>';
       return;
     }
-    // 浏览量 +1
-    ItemStore.update(item.id, { views: (item.views || 0) + 1 });
 
     const isMine = ItemStore.isOwner(item);
     const typeLabel = item.type === Constant.TYPE.LOST ? '寻物' : '招领';
     const done = item.status === Constant.STATUS.DONE;
     const doneText = item.type === Constant.TYPE.LOST ? '已找到' : '已归还';
+
+    // 悬赏行：只有寻物帖且金额 > 0 才出现
+    const rewardHtml = Reward.summarizeReward(item).hasReward
+      ? '<div class="detail-reward">'
+          + Constant.TEXT.rewardDetail.replace('{amount}', item.rewardAmount) + '</div>'
+      : '';
 
     let contactHtml;
     if (state.contactRevealed) {
@@ -406,6 +437,7 @@
         '🕐 ' + fmtTime(item.createdAt) + '<br>' +
         '👁 浏览 ' + (item.views || 0) +
       '</div>' +
+      rewardHtml +
       '<div class="detail-desc">' + (escapeHtml(item.description) || '这个人很懒，什么都没写…') + '</div>' +
       '<div class="detail-publisher">' +
         '<div class="detail-avatar">' + (isMine ? '我' : 'TA') + '</div>' +
@@ -416,7 +448,44 @@
         '<div style="font-size:12px;color:var(--text-3);margin-bottom:4px">联系方式</div>' +
         contactHtml +
       '</div>' +
+      tipBlockHtml(item, isMine) +
       '<div class="detail-actions">' + actionHtml + '</div>';
+  }
+
+  /* ============ 打赏区块（招领帖专属） ============ */
+  function tipBlockHtml(item, isMine) {
+    if (item.type !== Constant.TYPE.FOUND) return '';   // 寻物帖走「悬赏」那条线
+
+    const s = Reward.summarizeReward(item);
+    const records = Reward.getTipList(item).slice().reverse();  // 最新的排最上
+
+    const wall = s.tipCount > 0
+      ? '<div class="tip-wall">' +
+          '<div class="tip-wall-head">' + Constant.TEXT.tipWallTitle +
+            '<span class="tip-wall-sum">' +
+              Constant.TEXT.tipSummary.replace('{n}', s.tipCount).replace('{amount}', s.tipTotal) +
+            '</span>' +
+          '</div>' +
+          records.map(function (t) {
+            return '<div class="tip-item">' +
+              '<span class="tip-amt">¥' + t.amount + '</span>' +
+              '<span class="tip-note">' + escapeHtml(t.note || Constant.TEXT.tipRecordNote) + '</span>' +
+              '<span class="tip-at">' + fmtTime(t.at) + '</span>' +
+            '</div>';
+          }).join('') +
+        '</div>'
+      : '<div class="tip-wall tip-wall-empty">' + Constant.TEXT.tipWallEmpty +
+          '<div class="tip-wall-sub">' + Constant.TEXT.tipWallEmptySub + '</div>' +
+        '</div>';
+
+    const btn = isMine
+      ? ''
+      : '<button class="btn-reward" type="button" onclick="openTipPanel()">'
+          + Constant.TEXT.tipButton + '</button>';
+
+    return '<div class="detail-tip-box">' + btn + wall +
+      '<div class="tip-demo-note">' + Constant.TEXT.tipDemoNote + '</div>' +
+    '</div>';
   }
 
   window.revealContact = function () {
@@ -461,14 +530,74 @@
     }
   };
 
+  /* ============ 打赏弹层 ============ */
+  function renderTipAmounts() {
+    const box = $('#tip-amounts');
+    box.innerHTML = '';
+    Constant.TIP_AMOUNTS.forEach(n => {
+      const d = el('div', 'tip-amt-opt' + (state.tipAmount === n ? ' on' : ''), '¥' + n);
+      d.onclick = function () {
+        state.tipAmount = n;
+        $('#tip-custom').value = '';          // 选档位就丢掉自定义值，避免两个来源打架
+        $('#tip-err').textContent = '';
+        renderTipAmounts();
+      };
+      box.appendChild(d);
+    });
+  }
+
+  window.openTipPanel = function () {
+    const item = ItemStore.getById(state.currentDetailId);
+    if (!Reward.canTip(item, ItemStore.isOwner(item))) return;   // 双保险：手改 DOM 也打不了赏
+
+    state.tipAmount = Constant.TIP_AMOUNTS[0];   // 默认落在第一档
+    $('#tip-custom').value = '';
+    $('#tip-note').value = '';
+    $('#tip-err').textContent = '';
+    renderTipAmounts();
+    $('#tip-mask').classList.remove('hidden');
+  };
+
+  window.closeTipPanel = function () {
+    $('#tip-mask').classList.add('hidden');
+  };
+
+  // 自定义金额：一输入就重画档位，非档位值时自然全不高亮
+  $('#tip-custom').oninput = function () {
+    const v = $('#tip-custom').value.trim();
+    state.tipAmount = (v === '') ? Constant.TIP_AMOUNTS[0] : Number(v);
+    $('#tip-err').textContent = '';
+    renderTipAmounts();
+  };
+
+  $('#tip-confirm').onclick = function () {
+    if (!Constant.isValidAmount(state.tipAmount)) {
+      $('#tip-err').textContent = Constant.TEXT.errTipAmount
+        .replace('{min}', Constant.AMOUNT_LIMIT.min)
+        .replace('{max}', Constant.AMOUNT_LIMIT.max);
+      return;
+    }
+
+    const tip = Reward.makeTip(state.tipAmount, $('#tip-note').value);
+    const saved = ItemStore.addTip(state.currentDetailId, tip);
+    if (!saved) { toast(Constant.TEXT.toastNotFound); return; }
+
+    closeTipPanel();
+    toast(Constant.TEXT.tipSuccess);
+    renderDetail();
+  };
+
   /* ============ 我的发布 ============ */
   function renderMine() {
     const mine = ItemStore.getAll().filter(i => ItemStore.isOwner(i));
     const openCount = mine.filter(i => i.status === Constant.STATUS.OPEN).length;
+    // 我发布的信息累计收到的打赏金额（招领帖才有；寻物帖恒为 0，不影响求和）
+    const tipSum = mine.reduce((sum, it) => sum + Reward.summarizeReward(it).tipTotal, 0);
     $('#mine-stats').innerHTML =
       '<div><b>' + mine.length + '</b><span>全部发布</span></div>' +
       '<div><b>' + openCount + '</b><span>进行中</span></div>' +
-      '<div><b>' + (mine.length - openCount) + '</b><span>已完结</span></div>';
+      '<div><b>' + (mine.length - openCount) + '</b><span>已完结</span></div>' +
+      '<div><b>' + tipSum + '</b><span>收获打赏</span></div>';
     renderCardList($('#mine-list'), mine, true);
     $('#mine-empty').classList.toggle('hidden', mine.length > 0);
   }

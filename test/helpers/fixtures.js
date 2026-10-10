@@ -3,7 +3,7 @@
  *
  * 只被 test/*.test.js require；文件名不是 *.test.js，因此不会被 mocha 当成用例文件加载。
  *
- * 逻辑层六个模块都是「双导出」写法（浏览器挂 window / Node 用 module.exports），
+ * 逻辑层七个模块都是「双导出」写法（浏览器挂 window / Node 用 module.exports），
  * 所以这里直接 require 即可，不需要 eval，也不需要 mock DOM。
  * store.js 在 Node 下会自动把 localStorage 降级成进程内内存 shim，
  * 因此 ItemStore 开箱即可测；要验真实 localStorage 路径时，
@@ -21,6 +21,7 @@ const ItemStore = require(path.join(JS_DIR, 'store.js'));
 const Validate = require(path.join(JS_DIR, 'validate.js'));
 const Search = require(path.join(JS_DIR, 'search.js'));
 const Status = require(path.join(JS_DIR, 'status.js'));
+const Reward = require(path.join(JS_DIR, 'reward.js'));
 
 /**
  * seed.js 的示例数据规模。**改动示例数据后必须同步改这里**，
@@ -59,6 +60,6 @@ function repeat(ch, n) {
 }
 
 module.exports = {
-  JS_DIR, Constant, Seed, ItemStore, Validate, Search, Status,
+  JS_DIR, Constant, Seed, ItemStore, Validate, Search, Status, Reward,
   SEED, validForm, countBy, repeat
 };
