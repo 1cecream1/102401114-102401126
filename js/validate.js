@@ -1,11 +1,11 @@
 /**
  * js/validate.js —— 表单校验
  *
- * 【当前状态】MOCK（逻辑层 mock 阶段）
- *   已实现：必填项 + 名称/联系方式长度下限 + 分类/地点/类型合法性。
- *   —— 这几条必须真校验，否则乙没法验「发布页逐项标红」（页面层任务 5）。
- *   TODO(甲): 补 description ≤200、lostTime ≤20 的字数校验，
- *            并把每条规则补上「通过 / 不通过」两个分支的单测。
+ * 【实现】逐字段给出中文错误文案，页面层按 errors 的键逐项标红。
+ *   覆盖：类型枚举 / 名称必填与长度 / 分类枚举 / 地点枚举 / 描述长度 /
+ *        丢失时间必填与长度 / 联系方式必填与长度。
+ *   长度上限一律从 Constant.LIMITS 取，与 index.html 上 input 的 maxlength 一致
+ *   —— 正常手输到不了上限，这两条是防「程序化写入 / 粘贴绕过」的兜底。
  *
  * 【导出】Validate.validateItem(data) → { valid: boolean, errors: { 字段名: 提示文案 } }
  *   errors 按字段归类，页面层逐项读它标红；全部合法时 errors 为 {}。
@@ -24,6 +24,11 @@
     return typeof v === 'string' ? v.trim() : '';
   }
 
+  // 「xxx 不超过 N 字，现在 M 字」——统一措辞，避免各处文案不一致
+  function tooLong(label, value, limit) {
+    return label + '不超过 ' + limit + ' 字，现在 ' + value.length + ' 字';
+  }
+
   function validateItem(data) {
     const errors = {};
     const d = (data && typeof data === 'object') ? data : {};
@@ -38,7 +43,7 @@
     if (!name) {
       errors.name = '请填写物品名称';
     } else if (name.length > C.LIMITS.name) {
-      errors.name = '物品名称不超过 ' + C.LIMITS.name + ' 字，现在 ' + name.length + ' 字';
+      errors.name = tooLong('物品名称', name, C.LIMITS.name);
     }
 
     // 分类：必须是 8 类之一
@@ -61,7 +66,19 @@
       errors.contact = '联系方式不超过 ' + C.LIMITS.contactMax + ' 字';
     }
 
-    // TODO(甲): 描述 ≤ LIMITS.description、丢失时间 ≤ LIMITS.lostTime 的字数校验
+    // 丢失 / 拾获时间：必填 ≤20 字（自由文本，只限长度、不解析格式）
+    const lostTime = text(d.lostTime);
+    if (!lostTime) {
+      errors.lostTime = '请填写' + C.getPostTab(d.type).timeLabel;
+    } else if (lostTime.length > C.LIMITS.lostTime) {
+      errors.lostTime = tooLong(C.getPostTab(d.type).timeLabel, lostTime, C.LIMITS.lostTime);
+    }
+
+    // 物品描述：选填，但不超过 200 字
+    const description = text(d.description);
+    if (description.length > C.LIMITS.description) {
+      errors.description = tooLong('物品描述', description, C.LIMITS.description);
+    }
 
     return {
       valid: Object.keys(errors).length === 0,

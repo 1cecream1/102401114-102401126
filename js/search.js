@@ -1,11 +1,9 @@
 /**
  * js/search.js —— 关键词搜索 + 组合筛选 + 排序
  *
- * 【当前状态】MOCK（逻辑层 mock 阶段）
- *   已实现：type / category / place / status / ownerId 组合筛选 + 三种排序。
- *   —— 这些必须真生效，否则乙没法验「筛选点击后有反应」「切排序列表顺序变了」（E1 / E3）。
- *   TODO(甲): keyword 现在**只匹配物品名称**，
- *            真实实现要扩到 名称 / 分类 / 地点 / 描述 四个字段（F5 要求）。
+ * 【关键词范围】子串匹配以下四个字段：物品名称 / 分类 / 地点 / 描述（F5 要求）。
+ *   忽略大小写，前后空格自动去掉；不匹配 type / status / contact
+ *   —— 联系方式属于隐私，不该被搜出来。
  *
  * 【导出】Search.filterItems(items, filters) → 新数组（不改动传入的 items）
  *   filters 支持任意组合：
@@ -25,6 +23,9 @@
   const C = isNode ? require('./constant.js') : root.Constant;
   if (!C) throw new Error('[search.js] constant.js 未加载：请把 constant.js 放在本文件之前引入');
 
+  // 关键词参与匹配的字段（顺序无关，只影响可读性）
+  const KEYWORD_FIELDS = ['name', 'category', 'place', 'description'];
+
   // 'all' / '' / null / undefined 都表示「这一项不筛」
   function isAll(v) {
     return v === undefined || v === null || v === '' || v === C.FILTER_ALL;
@@ -32,6 +33,14 @@
 
   function lower(v) {
     return typeof v === 'string' ? v.toLowerCase() : '';
+  }
+
+  // 关键词是否命中该条：名称 / 分类 / 地点 / 描述 任一字段包含即算命中
+  function matchKeyword(item, keyword) {
+    for (let i = 0; i < KEYWORD_FIELDS.length; i++) {
+      if (lower(item[KEYWORD_FIELDS[i]]).indexOf(keyword) !== -1) return true;
+    }
+    return false;
   }
 
   // 按 SORT_OPTIONS 里声明的 field 取值，缺失时用 fallbackField
@@ -66,10 +75,7 @@
       if (!isAll(f.status) && item.status !== f.status) return false;
       if (!isAll(f.ownerId) && item.ownerId !== f.ownerId) return false;
 
-      if (keyword) {
-        // TODO(甲): 真实实现要匹配 名称 / 分类 / 地点 / 描述 四个字段
-        if (lower(item.name).indexOf(keyword) === -1) return false;
-      }
+      if (keyword && !matchKeyword(item, keyword)) return false;
       return true;
     });
 

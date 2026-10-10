@@ -243,6 +243,18 @@
 
     // 描述字数
     $('#f-desc').oninput = () => { $('#desc-count').textContent = $('#f-desc').value.length; };
+
+    // 重新输入时立刻清掉该项的红色错误态：否则校验失败后改好了还一直红着，要再点一次发布才刷新
+    [['#f-name', '#err-name'], ['#f-time', '#err-time'], ['#f-contact', '#err-contact']]
+      .forEach(([inputSel, errSel]) => {
+        const input = $(inputSel);
+        input.oninput = function () {
+          if (input.classList.contains('err')) {
+            input.classList.remove('err');
+            $(errSel).textContent = '';
+          }
+        };
+      });
   }
 
   function getSelectedChip(boxSel) {
@@ -278,6 +290,8 @@
     $('#f-name').classList.toggle('err', !!result.errors.name);
     setChipError('#f-category', '#err-category', result.errors.category);
     setChipError('#f-place', '#err-place', result.errors.place);
+    $('#err-time').textContent = result.errors.lostTime || '';
+    $('#f-time').classList.toggle('err', !!result.errors.lostTime);
     $('#err-contact').textContent = result.errors.contact || '';
     $('#f-contact').classList.toggle('err', !!result.errors.contact);
 
