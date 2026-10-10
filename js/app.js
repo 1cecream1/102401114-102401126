@@ -292,18 +292,28 @@
   $('#post-form').addEventListener('submit', function (e) {
     e.preventDefault();
     const rewardRaw = $('#f-reward').value.trim();
+        const timeVal = $('#f-time').value;
     const data = {
       type: state.postType,
       name: $('#f-name').value.trim(),
       category: getSelectedChip('#f-category'),
       place: getSelectedChip('#f-place'),
-      lostTime: $('#f-time').value.trim(),
+      lostTime: '',
+      lostAt: Date.now(),
       description: $('#f-desc').value.trim(),
-      contact: $('#f-contact').value.trim(),
-      // 悬赏只有寻物帖才带；留空 = 不设悬赏
-      rewardAmount: (state.postType === Constant.TYPE.LOST && rewardRaw !== '')
-        ? Number(rewardRaw) : 0
+      contact: $('#f-contact').value.trim()
     };
+    if (timeVal) {
+      const d = new Date(timeVal);
+      data.lostAt = d.getTime();
+      const h = d.getHours();
+      let period = '上午';
+      if (h >= 11 && h < 13) period = '中午';
+      else if (h >= 13 && h < 18) period = '下午';
+      else if (h >= 18) period = '晚上';
+      data.lostTime = (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + period;
+    }
+
 
     const result = Validate.validateItem(data);
     // 标红
@@ -320,8 +330,7 @@
 
     if (!result.valid) { toast('请检查表单'); return; }
 
-    // lostAt 时间戳（用当前时间近似，因为时间是自由文本）
-    data.lostAt = Date.now();
+   
     const saved = ItemStore.save(data);
     state.lastPostedId = saved.id;
 
