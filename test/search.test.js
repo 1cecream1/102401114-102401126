@@ -158,6 +158,111 @@ describe('Search 组合筛选', function () {
 
 });
 
+describe('Search 相似物品：发布寻物时提示「同类的招领」', function () {
+  /*
+   * 这条路径是「发布寻物 → 顺带提示库里可能已被捡到的招领」用的，
+   * app.js 里的调用是 filterItems(all, { type: FOUND, category: data.category })。
+   * 两个条件缺一不可：只按分类会混进寻物帖（那是「别人也在找」，不是「已被捡到」），
+   * 只按类型会把所有招领都算成相似（噪音太大）。这里把这两条语义锁住。
+   */
+
+  it('夹具：只返回「招领 + 同分类」，两条都命中才留下', function () {
+    expect(ids(Search.filterItems(ITEMS, { type: C.TYPE.FOUND, category: '日用品' })))
+      .to.deep.equal(['c']);
+  });
+
+  it('夹具：分类相同但不是招领 → 不返回（证件卡类只有一条寻物帖）', function () {
+    expect(Search.filterItems(ITEMS, { category: '证件卡类' })).to.have.lengthOf(1);
+    expect(Search.filterItems(ITEMS, { type: C.TYPE.FOUND, category: '证件卡类' }))
+      .to.deep.equal([]);
+  });
+
+  it('夹具：是招领但分类不同 → 不返回', function () {
+    expect(Search.filterItems(ITEMS, { type: C.TYPE.FOUND, category: '运动器材' }))
+      .to.deep.equal([]);
+  });
+
+  it('缺少 category 时不能当成「全部相似」（页面层漏传就会退化成噪音）', function () {
+    // 只给 type 会返回全部招领（夹具里 2 条），这是调用方必须自己保证的
+    expect(Search.filterItems(ITEMS, { type: C.TYPE.FOUND })).to.have.lengthOf(2);
+    // 而缺 category 时用 FILTER_ALL / 空串，结果同样是「全部招领」而不是「相似」
+    expect(Search.filterItems(ITEMS, { type: C.TYPE.FOUND, category: C.FILTER_ALL }))
+      .to.have.lengthOf(2);
+  });
+
+  describe('真实示例数据', function () {
+
+    let all;
+    beforeEach(function () { all = ItemStore.reset(); });
+
+    /** 页面层用的那条查询，原样复刻，避免测试与实现各写一遍导致口径漂移 */
+    function similarTo(category) {
+      return Search.filterItems(all, { type: C.TYPE.FOUND, category: category });
+    }
+
+    it('每一类都只返回该类的招领帖（不变量：类型 + 分类同时成立）', function () {
+      C.CATEGORY.forEach(function (cat) {
+        similarTo(cat).forEach(function (it) {
+          expect(it.type).to.equal(C.TYPE.FOUND);
+          expect(it.category).to.equal(cat);
+        });
+      });
+    });
+
+    it('各类相似条数之和 = 库里的招领总数（不重不漏）', function () {
+      const sum = C.CATEGORY.reduce(function (n, cat) { return n + similarTo(cat).length; }, 0);
+      expect(sum).to.equal(SEED.FOUND);
+    });
+
+    it('具体条数：日用品 2 / 运动器材 2 / 服饰饰品 2 / 钥匙门禁 2 / 书籍资料 1 / 证件卡类 1', function () {
+      expect(similarTo('日用品')).to.have.lengthOf(2);
+      expect(similarTo('运动器材')).to.have.lengthOf(2);
+      expect(similarTo('服饰饰品')).to.have.lengthOf(2);
+      expect(similarTo('钥匙门禁')).to.have.lengthOf(2);
+      expect(similarTo('书籍资料')).to.have.lengthOf(1);
+      expect(similarTo('证件卡类')).to.have.lengthOf(1);
+    });
+
+    it('电子产品一条招领都没有 → 返回空数组，页面层据此不弹提示', function () {
+      expect(similarTo('电子产品')).to.have.lengthOf(0);
+      // 但「电子产品」本身是有数据的（4 条寻物帖），说明空结果不是因为库里没这个分类
+      expect(Search.filterItems(all, { category: '电子产品' })).to.have.lengthOf(4);
+    });
+
+    it('提示文案里的 {n} 就是这条查询的条数（两者口径必须一致）', function () {
+      const n = similarTo('日用品').length;
+      expect(C.TEXT.similarTip.replace('{n}', n)).to.contain(String(n));
+      expect(C.TEXT.similarTip.replace('{n}', n)).to.contain('招领');
+    });
+
+    it('刚发布的寻物帖不会把自己算进相似列表', function () {
+      const before = similarTo('日用品').length;
+      ItemStore.save({
+        type: C.TYPE.LOST, name: '相似度自测水杯', category: '日用品', place: '校道',
+        lostTime: '刚刚', description: '', contact: '微信 sim'
+      });
+      all = ItemStore.getAll();
+      const after = similarTo('日用品');
+      expect(after).to.have.lengthOf(before);          // 新发的是寻物帖，不该混进来
+      expect(after.some(function (it) { return it.name === '相似度自测水杯'; })).to.equal(false);
+    });
+
+    it('发布招领后再查同类，能被自己新发的那条命中（同一分类下确实会互相「相似」）', function () {
+      const before = similarTo('其他').length;
+      ItemStore.save({
+        type: C.TYPE.FOUND, name: '相似度自测耳机盒', category: '其他', place: '校道',
+        lostTime: '刚刚', description: '', contact: '微信 sim2'
+      });
+      all = ItemStore.getAll();
+      const after = similarTo('其他');
+      expect(after).to.have.lengthOf(before + 1);
+      expect(after.some(function (it) { return it.name === '相似度自测耳机盒'; })).to.equal(true);
+    });
+
+  });
+
+});
+
 describe('Search 排序', function () {
 
   it('latest：按 createdAt 倒序', function () {
