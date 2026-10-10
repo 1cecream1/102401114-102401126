@@ -601,7 +601,8 @@
     renderCardList($('#mine-list'), mine, true);
     $('#mine-empty').classList.toggle('hidden', mine.length > 0);
   }
-
+  // 启动时默认进入首页
   /* ============ 启动 ============ */
+ 
   go('home');
 })();
