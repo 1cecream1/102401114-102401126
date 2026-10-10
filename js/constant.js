@@ -80,7 +80,7 @@
     '书籍资料', '运动器材', '服饰饰品', '其他'
   ]);
 
-    const CATEGORY_ICON = Object.freeze({
+  const CATEGORY_ICON = Object.freeze({
     '证件卡类': '💳', '钥匙门禁': '🔑', '电子产品': '📱', '日用品': '🧴',
     '书籍资料': '📚', '运动器材': '🏐', '服饰饰品': '🧣', '其他': '📦'
   });
@@ -146,7 +146,9 @@
     postAgain: '再发一条',
     viewDetail: '查看详情',
 
-    similarTip: '库里有 {n} 条同类的招领信息，可能已被捡到，先去看看？',
+    // 相似物品提示：句子 + 后面跟的链接文案（成功页渲染成可点击入口）
+    similarTip: '库里有 {n} 条同类的招领信息，可能已被捡到，',
+    similarTipLink: '先去看看 ›',
 
     // —— 悬赏（寻物帖发布时填写，纯展示）——
     rewardBadge: '🎁 悬赏 ¥{amount}',
@@ -175,6 +177,8 @@
     confirmClose: '确定标记为「{label}」吗？标记后列表和详情都会同步更新。',
     confirmDelete: '删除后无法恢复，确定删除这条信息吗？',
     confirmReset: '将清空本机全部数据并恢复 24 条示例信息，确定继续吗？',
+    resetButton: '恢复示例数据',
+    resetDone: '已恢复示例数据',
     toastSaved: '已保存',
     toastUpdated: '已更新',
     toastDeleted: '已删除',

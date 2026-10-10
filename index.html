@@ -96,8 +96,6 @@
         <p class="form-error" id="err-contact"></p>
       </div>
 
-      <div class="similar-tip hidden" id="similar-tip"></div>
-
       <button type="submit" class="btn-primary">立即发布</button>
     </form>
   </section>
@@ -141,17 +139,15 @@
       <h1 class="navbar-title">我的发布</h1>
     </header>
     <div class="mine-stats" id="mine-stats"></div>
-        <div class="mine-stats" id="mine-stats"></div>
-    <div style="text-align:center;margin:10px 0">
-      <button type="button" class="btn-outline" style="font-size:13px;padding:6px 16px" onclick="resetData()">恢复示例数据</button>
-    </div>
-    <div class="card-list" id="mine-list"></div>
-
     <div class="card-list" id="mine-list"></div>
     <div class="empty-state hidden" id="mine-empty">
       <div class="empty-icon">📝</div>
       <div class="empty-title">你还没有发布过信息</div>
       <div class="empty-sub">点底部「+」发一条试试</div>
+    </div>
+    <div class="mine-footer">
+      <button class="btn-reset" id="btn-reset" type="button">恢复示例数据</button>
+      <p class="mine-footer-hint">清空本机数据并重新灌入 24 条示例信息（演示 / 答辩用）</p>
     </div>
   </section>
 
@@ -163,6 +159,7 @@
       <p class="success-sub">信息已公开，好心人看到会联系你</p>
       <button class="btn-primary" onclick="go('home')">返回首页</button>
       <button class="btn-ghost" id="btn-view-detail">查看详情</button>
+      <div class="similar-tip hidden" id="similar-tip"></div>
     </div>
   </section>
 

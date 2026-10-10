@@ -54,6 +54,29 @@
     return Constant.TEXT.timeStale;
   }
 
+  /**
+   * 把 <input type="datetime-local"> 的值（'2026-10-09T18:00'）格式化成
+   * 示例数据同款的中文时段文案（'10月9日 傍晚'）。
+   * 存在的意义：lostTime 是给人看的自由文本、lostAt 是给排序的时间戳，
+   * 两者必须由**同一个输入**派生，否则「最近丢失」又退化成「最新发布」。
+   * 无法解析时返回空串，交给 validate 报「请填写丢失时间」。
+   */
+  function fmtLostTime(value) {
+    if (!value) return '';
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return '';
+    const h = d.getHours();
+    let period;
+    if (h < 5) period = '凌晨';
+    else if (h < 9) period = '早上';
+    else if (h < 11) period = '上午';
+    else if (h < 13) period = '中午';
+    else if (h < 18) period = '下午';
+    else if (h < 19) period = '傍晚';
+    else period = '晚上';
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + period;
+  }
+
   /* ============ 视图路由 ============ */
   window.go = function (view) {
     state.view = view;
@@ -222,7 +245,8 @@
     $('#label-time').innerHTML = tab.timeLabel + ' <span class="req">*</span>';
     $('#f-name').placeholder = tab.namePlaceholder;
     $('#f-desc').placeholder = tab.descPlaceholder;
-    $('#f-time').placeholder = tab.timePlaceholder;
+    // 时间字段已改为 <input type="datetime-local">（原生日期时间选择器不支持 placeholder），
+    // 由浏览器给出「年/月/日 --:--」的输入提示，这里不再设置占位文案。
 
     // 悬赏只对「我丢了东西」有意义；切到招领时整块藏起来
     const isLost = state.postType === Constant.TYPE.LOST;
@@ -289,31 +313,48 @@
     }
   }
 
+  /* ============ 相似物品提示（发布成功页） ============ */
+  // 寻物帖发布后，若库里有同分类的招领信息，就在成功页给出一个可点击入口。
+  // 旧版这里只弹一条 1.8 秒自动消失的 toast，文案写着「先去看看？」却点不了——
+  // 有了出口，「库里有 N 条同类招领」这条提示才真的有用。
+  // 注意：openDetail 是本文件内部函数、**没有挂到 window**，所以只能用闭包绑 onclick，
+  // 在 HTML 上写 onclick="openDetail(...)" 会因为找不到全局函数而静默失败。
+  function renderSimilarTip(data) {
+    const tip = $('#similar-tip');
+    tip.innerHTML = '';
+    tip.classList.add('hidden');
+    if (data.type !== Constant.TYPE.LOST) return;
+
+    const similar = Search.filterItems(ItemStore.getAll(), {
+      type: Constant.TYPE.FOUND, category: data.category
+    });
+    if (similar.length === 0) return;
+
+    tip.textContent = Constant.TEXT.similarTip.replace('{n}', similar.length);
+    const link = el('a', 'similar-link', Constant.TEXT.similarTipLink);
+    link.onclick = function () { openDetail(similar[0].id); };
+    tip.appendChild(link);
+    tip.classList.remove('hidden');
+  }
+
   $('#post-form').addEventListener('submit', function (e) {
     e.preventDefault();
     const rewardRaw = $('#f-reward').value.trim();
-        const timeVal = $('#f-time').value;
+    // datetime-local 的值形如 '2026-10-09T18:00'；未填写时是空串（交给校验层报「请填写」）
+    const timeRaw = $('#f-time').value;
     const data = {
       type: state.postType,
       name: $('#f-name').value.trim(),
       category: getSelectedChip('#f-category'),
       place: getSelectedChip('#f-place'),
-      lostTime: '',
-      lostAt: Date.now(),
+      // 展示用文本：由用户选的时刻格式化回中文（'10月9日 傍晚'），与示例数据同一种风格
+      lostTime: fmtLostTime(timeRaw),
       description: $('#f-desc').value.trim(),
-      contact: $('#f-contact').value.trim()
+      contact: $('#f-contact').value.trim(),
+      // 悬赏只有寻物帖才带；留空 = 不设悬赏
+      rewardAmount: (state.postType === Constant.TYPE.LOST && rewardRaw !== '')
+        ? Number(rewardRaw) : 0
     };
-    if (timeVal) {
-      const d = new Date(timeVal);
-      data.lostAt = d.getTime();
-      const h = d.getHours();
-      let period = '上午';
-      if (h >= 11 && h < 13) period = '中午';
-      else if (h >= 13 && h < 18) period = '下午';
-      else if (h >= 18) period = '晚上';
-      data.lostTime = (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + period;
-    }
-
 
     const result = Validate.validateItem(data);
     // 标红
@@ -330,28 +371,16 @@
 
     if (!result.valid) { toast('请检查表单'); return; }
 
-   
+    // lostAt 时间戳直接由用户选的时刻解析：这样「最近丢失」排序读到的才是真正的
+    // 丢失时间，而不是「发布的时刻」。旧版是自由文本、只能用 Date.now() 近似，
+    // 于是新发布的数据在「最近丢失」下永远排最前（退化成「最新发布」）。
+    const lostTs = new Date(timeRaw).getTime();
+    data.lostAt = isFinite(lostTs) ? lostTs : Date.now();
     const saved = ItemStore.save(data);
     state.lastPostedId = saved.id;
 
-    // 相似物品提示：如果是寻物，看看有没有同类招领
-        if (data.type === Constant.TYPE.LOST) {
-      const similar = Search.filterItems(ItemStore.getAll(), {
-        type: Constant.TYPE.FOUND, category: data.category
-      });
-      const tip = document.querySelector('#similar-tip');
-      if (similar.length > 0) {
-        tip.textContent = '库里有 ' + similar.length + ' 条同类招领信息，';
-        const a = el('a', '', '先看看 ›');
-        a.onclick = function () { openDetail(similar[0].id); };
-        tip.appendChild(a);
-        tip.classList.remove('hidden');
-      } else {
-        tip.classList.add('hidden');
-      }
-    }
-
-
+    // 相似物品提示：渲染到成功页（可点击直达同类招领详情），要在清空表单之前调用
+    renderSimilarTip(data);
 
     // 清空表单
     $('#post-form').reset();
@@ -510,25 +539,32 @@
     state.contactRevealed = true;
     renderDetail();
   };
-  
+
   window.copyContact = function (text) {
     const ok = function () { toast(Constant.TEXT.copySuccess); };
+
+    // 降级实现：临时 textarea + execCommand（剪贴板 API 不可用，或本身调用失败时兜底）
     const legacyCopy = function () {
       const ta = document.createElement('textarea');
       ta.value = text;
-      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand('copy'); ok(); } catch (e) { toast(Constant.TEXT.copyFail); }
+      try { document.execCommand('copy'); ok(); }
+      catch (e) { toast(Constant.TEXT.copyFail); }
       document.body.removeChild(ta);
     };
+
     if (navigator.clipboard && window.isSecureContext) {
+      // 关键：降级要挂在 .catch 上，而不是让 catch 只弹一句提示。
+      // clipboard API 存在但本次调用失败（文档未聚焦 / 权限被拒）时同样走降级，
+      // 否则「能复制却报失败」——旧版就是这里缺了一条路。
       navigator.clipboard.writeText(text).then(ok).catch(legacyCopy);
     } else {
       legacyCopy();
     }
   };
-
 
   window.markClose = function (label) {
     if (confirm(Constant.TEXT.confirmClose.replace('{label}', label))) {
@@ -621,15 +657,18 @@
     renderCardList($('#mine-list'), mine, true);
     $('#mine-empty').classList.toggle('hidden', mine.length > 0);
   }
-  // 启动时默认进入首页
-  /* ============ 启动 ============ */
-   window.resetData = function () {
-    if (confirm('将清空本机全部数据并恢复 24 条示例信息，确定继续吗？')) {
-      ItemStore.reset();
-      toast('已恢复示例数据');
-      renderMine();
-    }
+
+  // 「恢复示例数据」入口（附加特点 E7 的界面入口）：二次确认后清空本机数据、重新灌示例数据
+  // 旧版 reset() 早已实现但没有界面入口，答辩演示要开控制台手动调用。
+  $('#btn-reset').onclick = function () {
+    if (!confirm(Constant.TEXT.confirmReset)) return;
+    ItemStore.reset();
+    toast(Constant.TEXT.resetDone);
+    renderMine();
   };
 
+  // 启动时默认进入首页
+  /* ============ 启动 ============ */
+ 
   go('home');
 })();
