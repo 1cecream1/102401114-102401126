@@ -292,18 +292,28 @@
   $('#post-form').addEventListener('submit', function (e) {
     e.preventDefault();
     const rewardRaw = $('#f-reward').value.trim();
+        const timeVal = $('#f-time').value;
     const data = {
       type: state.postType,
       name: $('#f-name').value.trim(),
       category: getSelectedChip('#f-category'),
       place: getSelectedChip('#f-place'),
-      lostTime: $('#f-time').value.trim(),
+      lostTime: '',
+      lostAt: Date.now(),
       description: $('#f-desc').value.trim(),
-      contact: $('#f-contact').value.trim(),
-      // 悬赏只有寻物帖才带；留空 = 不设悬赏
-      rewardAmount: (state.postType === Constant.TYPE.LOST && rewardRaw !== '')
-        ? Number(rewardRaw) : 0
+      contact: $('#f-contact').value.trim()
     };
+    if (timeVal) {
+      const d = new Date(timeVal);
+      data.lostAt = d.getTime();
+      const h = d.getHours();
+      let period = '上午';
+      if (h >= 11 && h < 13) period = '中午';
+      else if (h >= 13 && h < 18) period = '下午';
+      else if (h >= 18) period = '晚上';
+      data.lostTime = (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + period;
+    }
+
 
     const result = Validate.validateItem(data);
     // 标红
@@ -320,20 +330,28 @@
 
     if (!result.valid) { toast('请检查表单'); return; }
 
-    // lostAt 时间戳（用当前时间近似，因为时间是自由文本）
-    data.lostAt = Date.now();
+   
     const saved = ItemStore.save(data);
     state.lastPostedId = saved.id;
 
     // 相似物品提示：如果是寻物，看看有没有同类招领
-    if (data.type === Constant.TYPE.LOST) {
+        if (data.type === Constant.TYPE.LOST) {
       const similar = Search.filterItems(ItemStore.getAll(), {
         type: Constant.TYPE.FOUND, category: data.category
       });
+      const tip = document.querySelector('#similar-tip');
       if (similar.length > 0) {
-        toast(Constant.TEXT.similarTip.replace('{n}', similar.length));
+        tip.textContent = '库里有 ' + similar.length + ' 条同类招领信息，';
+        const a = el('a', '', '先看看 ›');
+        a.onclick = function () { openDetail(similar[0].id); };
+        tip.appendChild(a);
+        tip.classList.remove('hidden');
+      } else {
+        tip.classList.add('hidden');
       }
     }
+
+
 
     // 清空表单
     $('#post-form').reset();
@@ -492,23 +510,25 @@
     state.contactRevealed = true;
     renderDetail();
   };
-
+  
   window.copyContact = function (text) {
-    const done = function () { toast(Constant.TEXT.copySuccess); };
-    const fail = function () { toast(Constant.TEXT.copyFail); };
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(done).catch(fail);
-    } else {
-      // file:// 降级方案
+    const ok = function () { toast(Constant.TEXT.copySuccess); };
+    const legacyCopy = function () {
       const ta = document.createElement('textarea');
       ta.value = text;
       ta.style.position = 'fixed'; ta.style.opacity = '0';
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand('copy'); done(); } catch (e) { fail(); }
+      try { document.execCommand('copy'); ok(); } catch (e) { toast(Constant.TEXT.copyFail); }
       document.body.removeChild(ta);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(ok).catch(legacyCopy);
+    } else {
+      legacyCopy();
     }
   };
+
 
   window.markClose = function (label) {
     if (confirm(Constant.TEXT.confirmClose.replace('{label}', label))) {
@@ -603,6 +623,13 @@
   }
   // 启动时默认进入首页
   /* ============ 启动 ============ */
- 
+   window.resetData = function () {
+    if (confirm('将清空本机全部数据并恢复 24 条示例信息，确定继续吗？')) {
+      ItemStore.reset();
+      toast('已恢复示例数据');
+      renderMine();
+    }
+  };
+
   go('home');
 })();
