@@ -326,14 +326,23 @@
     state.lastPostedId = saved.id;
 
     // 相似物品提示：如果是寻物，看看有没有同类招领
-    if (data.type === Constant.TYPE.LOST) {
+        if (data.type === Constant.TYPE.LOST) {
       const similar = Search.filterItems(ItemStore.getAll(), {
         type: Constant.TYPE.FOUND, category: data.category
       });
+      const tip = document.querySelector('#similar-tip');
       if (similar.length > 0) {
-        toast(Constant.TEXT.similarTip.replace('{n}', similar.length));
+        tip.textContent = '库里有 ' + similar.length + ' 条同类招领信息，';
+        const a = el('a', '', '先看看 ›');
+        a.onclick = function () { openDetail(similar[0].id); };
+        tip.appendChild(a);
+        tip.classList.remove('hidden');
+      } else {
+        tip.classList.add('hidden');
       }
     }
+
+
 
     // 清空表单
     $('#post-form').reset();
