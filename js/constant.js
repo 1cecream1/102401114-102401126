@@ -177,6 +177,8 @@
     confirmClose: '确定标记为「{label}」吗？标记后列表和详情都会同步更新。',
     confirmDelete: '删除后无法恢复，确定删除这条信息吗？',
     confirmReset: '将清空本机全部数据并恢复 24 条示例信息，确定继续吗？',
+    resetButton: '恢复示例数据',
+    resetDone: '已恢复示例数据',
     toastSaved: '已保存',
     toastUpdated: '已更新',
     toastDeleted: '已删除',

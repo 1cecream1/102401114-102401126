@@ -627,6 +627,16 @@
     renderCardList($('#mine-list'), mine, true);
     $('#mine-empty').classList.toggle('hidden', mine.length > 0);
   }
+
+  // 「恢复示例数据」入口（附加特点 E7 的界面入口）：二次确认后清空本机数据、重新灌示例数据
+  // 旧版 reset() 早已实现但没有界面入口，答辩演示要开控制台手动调用。
+  $('#btn-reset').onclick = function () {
+    if (!confirm(Constant.TEXT.confirmReset)) return;
+    ItemStore.reset();
+    toast(Constant.TEXT.resetDone);
+    renderMine();
+  };
+
   // 启动时默认进入首页
   /* ============ 启动 ============ */
  

@@ -217,6 +217,13 @@ body {
 .mine-stats div { flex: 1; text-align: center; }
 .mine-stats b { display: block; font-size: 22px; color: var(--primary); }
 .mine-stats span { font-size: 11px; color: var(--text-3); }
+.mine-footer { padding: 8px 12px 24px; text-align: center; }
+.btn-reset {
+  background: #fff; color: var(--text-2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 9px 20px; font-size: 13px; cursor: pointer;
+}
+.btn-reset:active { background: #f4f5f7; }
+.mine-footer-hint { font-size: 11px; color: var(--text-3); margin-top: 8px; }
 .card-actions { display: flex; gap: 8px; margin-top: 8px; }
 .card-actions button {
   font-size: 11px; padding: 4px 10px; border-radius: 4px; cursor: pointer;
