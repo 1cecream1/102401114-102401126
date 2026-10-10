@@ -492,23 +492,25 @@
     state.contactRevealed = true;
     renderDetail();
   };
-
+  
   window.copyContact = function (text) {
-    const done = function () { toast(Constant.TEXT.copySuccess); };
-    const fail = function () { toast(Constant.TEXT.copyFail); };
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(done).catch(fail);
-    } else {
-      // file:// 降级方案
+    const ok = function () { toast(Constant.TEXT.copySuccess); };
+    const legacyCopy = function () {
       const ta = document.createElement('textarea');
       ta.value = text;
       ta.style.position = 'fixed'; ta.style.opacity = '0';
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand('copy'); done(); } catch (e) { fail(); }
+      try { document.execCommand('copy'); ok(); } catch (e) { toast(Constant.TEXT.copyFail); }
       document.body.removeChild(ta);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(ok).catch(legacyCopy);
+    } else {
+      legacyCopy();
     }
   };
+
 
   window.markClose = function (label) {
     if (confirm(Constant.TEXT.confirmClose.replace('{label}', label))) {
