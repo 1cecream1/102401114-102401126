@@ -1,6 +1,7 @@
 /**
  * js/app.js —— 页面层：渲染 + 事件绑定
  * 只调用逻辑层（ItemStore / Validate / Search / Constant / Status），不直接碰 localStorage
+ // 页面层：只调用逻辑层（ItemStore/Validate/Search/Status），不直接操作 localStorage
  */
 (function () {
   'use strict';
