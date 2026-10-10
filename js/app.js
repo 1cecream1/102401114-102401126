@@ -494,19 +494,28 @@
   };
 
   window.copyContact = function (text) {
-    const done = function () { toast(Constant.TEXT.copySuccess); };
-    const fail = function () { toast(Constant.TEXT.copyFail); };
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(done).catch(fail);
-    } else {
-      // file:// 降级方案
+    const ok = function () { toast(Constant.TEXT.copySuccess); };
+
+    // 降级实现：临时 textarea + execCommand（剪贴板 API 不可用，或本身调用失败时兜底）
+    const legacyCopy = function () {
       const ta = document.createElement('textarea');
       ta.value = text;
-      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand('copy'); done(); } catch (e) { fail(); }
+      try { document.execCommand('copy'); ok(); }
+      catch (e) { toast(Constant.TEXT.copyFail); }
       document.body.removeChild(ta);
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+      // 关键：降级要挂在 .catch 上，而不是让 catch 只弹一句提示。
+      // clipboard API 存在但本次调用失败（文档未聚焦 / 权限被拒）时同样走降级，
+      // 否则「能复制却报失败」——旧版就是这里缺了一条路。
+      navigator.clipboard.writeText(text).then(ok).catch(legacyCopy);
+    } else {
+      legacyCopy();
     }
   };
 
