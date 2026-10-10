@@ -239,7 +239,7 @@ body {
 .tabbar-ico { display: block; font-size: 20px; margin-bottom: 2px; }
 .tabbar-publish { flex: 1; text-align: center; display: flex; align-items: center; justify-content: center; }
 .tabbar-plus {
-  width: 46px; height: 46px; flex-shrink: 0;
+  width: 48px; height: 48px;
   background: var(--primary); color: #fff;
   border-radius: 50%; font-size: 26px;
   display: flex; align-items: center; justify-content: center;
