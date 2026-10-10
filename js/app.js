@@ -614,6 +614,13 @@
   }
   // 启动时默认进入首页
   /* ============ 启动 ============ */
- 
+   window.resetData = function () {
+    if (confirm('将清空本机全部数据并恢复 24 条示例信息，确定继续吗？')) {
+      ItemStore.reset();
+      toast('已恢复示例数据');
+      renderMine();
+    }
+  };
+
   go('home');
 })();
