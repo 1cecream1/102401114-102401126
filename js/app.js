@@ -289,6 +289,30 @@
     }
   }
 
+  /* ============ 相似物品提示（发布成功页） ============ */
+  // 寻物帖发布后，若库里有同分类的招领信息，就在成功页给出一个可点击入口。
+  // 旧版这里只弹一条 1.8 秒自动消失的 toast，文案写着「先去看看？」却点不了——
+  // 有了出口，「库里有 N 条同类招领」这条提示才真的有用。
+  // 注意：openDetail 是本文件内部函数、**没有挂到 window**，所以只能用闭包绑 onclick，
+  // 在 HTML 上写 onclick="openDetail(...)" 会因为找不到全局函数而静默失败。
+  function renderSimilarTip(data) {
+    const tip = $('#similar-tip');
+    tip.innerHTML = '';
+    tip.classList.add('hidden');
+    if (data.type !== Constant.TYPE.LOST) return;
+
+    const similar = Search.filterItems(ItemStore.getAll(), {
+      type: Constant.TYPE.FOUND, category: data.category
+    });
+    if (similar.length === 0) return;
+
+    tip.textContent = Constant.TEXT.similarTip.replace('{n}', similar.length);
+    const link = el('a', 'similar-link', Constant.TEXT.similarTipLink);
+    link.onclick = function () { openDetail(similar[0].id); };
+    tip.appendChild(link);
+    tip.classList.remove('hidden');
+  }
+
   $('#post-form').addEventListener('submit', function (e) {
     e.preventDefault();
     const rewardRaw = $('#f-reward').value.trim();
@@ -325,15 +349,8 @@
     const saved = ItemStore.save(data);
     state.lastPostedId = saved.id;
 
-    // 相似物品提示：如果是寻物，看看有没有同类招领
-    if (data.type === Constant.TYPE.LOST) {
-      const similar = Search.filterItems(ItemStore.getAll(), {
-        type: Constant.TYPE.FOUND, category: data.category
-      });
-      if (similar.length > 0) {
-        toast(Constant.TEXT.similarTip.replace('{n}', similar.length));
-      }
-    }
+    // 相似物品提示：渲染到成功页（可点击直达同类招领详情），要在清空表单之前调用
+    renderSimilarTip(data);
 
     // 清空表单
     $('#post-form').reset();

@@ -146,7 +146,9 @@
     postAgain: '再发一条',
     viewDetail: '查看详情',
 
-    similarTip: '库里有 {n} 条同类的招领信息，可能已被捡到，先去看看？',
+    // 相似物品提示：句子 + 后面跟的链接文案（成功页渲染成可点击入口）
+    similarTip: '库里有 {n} 条同类的招领信息，可能已被捡到，',
+    similarTipLink: '先去看看 ›',
 
     // —— 悬赏（寻物帖发布时填写，纯展示）——
     rewardBadge: '🎁 悬赏 ¥{amount}',

@@ -161,7 +161,9 @@ body {
 .similar-tip {
   background: #fff7e6; border-radius: 8px; padding: 10px 12px;
   font-size: 12px; color: var(--warning); margin-bottom: 12px;
+  text-align: left; line-height: 1.7;
 }
+.similar-tip a { color: var(--primary); font-weight: 600; margin-left: 2px; cursor: pointer; }
 
 .btn-primary {
   width: 100%; padding: 13px; background: var(--primary); color: #fff;
