@@ -54,6 +54,29 @@
     return Constant.TEXT.timeStale;
   }
 
+  /**
+   * 把 <input type="datetime-local"> 的值（'2026-10-09T18:00'）格式化成
+   * 示例数据同款的中文时段文案（'10月9日 傍晚'）。
+   * 存在的意义：lostTime 是给人看的自由文本、lostAt 是给排序的时间戳，
+   * 两者必须由**同一个输入**派生，否则「最近丢失」又退化成「最新发布」。
+   * 无法解析时返回空串，交给 validate 报「请填写丢失时间」。
+   */
+  function fmtLostTime(value) {
+    if (!value) return '';
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return '';
+    const h = d.getHours();
+    let period;
+    if (h < 5) period = '凌晨';
+    else if (h < 9) period = '早上';
+    else if (h < 11) period = '上午';
+    else if (h < 13) period = '中午';
+    else if (h < 18) period = '下午';
+    else if (h < 19) period = '傍晚';
+    else period = '晚上';
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + period;
+  }
+
   /* ============ 视图路由 ============ */
   window.go = function (view) {
     state.view = view;
@@ -222,7 +245,8 @@
     $('#label-time').innerHTML = tab.timeLabel + ' <span class="req">*</span>';
     $('#f-name').placeholder = tab.namePlaceholder;
     $('#f-desc').placeholder = tab.descPlaceholder;
-    $('#f-time').placeholder = tab.timePlaceholder;
+    // 时间字段已改为 <input type="datetime-local">（原生日期时间选择器不支持 placeholder），
+    // 由浏览器给出「年/月/日 --:--」的输入提示，这里不再设置占位文案。
 
     // 悬赏只对「我丢了东西」有意义；切到招领时整块藏起来
     const isLost = state.postType === Constant.TYPE.LOST;
@@ -316,12 +340,15 @@
   $('#post-form').addEventListener('submit', function (e) {
     e.preventDefault();
     const rewardRaw = $('#f-reward').value.trim();
+    // datetime-local 的值形如 '2026-10-09T18:00'；未填写时是空串（交给校验层报「请填写」）
+    const timeRaw = $('#f-time').value;
     const data = {
       type: state.postType,
       name: $('#f-name').value.trim(),
       category: getSelectedChip('#f-category'),
       place: getSelectedChip('#f-place'),
-      lostTime: $('#f-time').value.trim(),
+      // 展示用文本：由用户选的时刻格式化回中文（'10月9日 傍晚'），与示例数据同一种风格
+      lostTime: fmtLostTime(timeRaw),
       description: $('#f-desc').value.trim(),
       contact: $('#f-contact').value.trim(),
       // 悬赏只有寻物帖才带；留空 = 不设悬赏
@@ -344,8 +371,11 @@
 
     if (!result.valid) { toast('请检查表单'); return; }
 
-    // lostAt 时间戳（用当前时间近似，因为时间是自由文本）
-    data.lostAt = Date.now();
+    // lostAt 时间戳直接由用户选的时刻解析：这样「最近丢失」排序读到的才是真正的
+    // 丢失时间，而不是「发布的时刻」。旧版是自由文本、只能用 Date.now() 近似，
+    // 于是新发布的数据在「最近丢失」下永远排最前（退化成「最新发布」）。
+    const lostTs = new Date(timeRaw).getTime();
+    data.lostAt = isFinite(lostTs) ? lostTs : Date.now();
     const saved = ItemStore.save(data);
     state.lastPostedId = saved.id;
 
