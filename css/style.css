@@ -1,5 +1,6 @@
 /* ===== 校园失物招领 · 页面样式 ===== */
 :root {
+  /* 主色：微信绿，贴合小程序风格 */
   --primary: #07C160;
   --primary-dark: #06AD56;
   --bg: #f4f5f7;
@@ -60,7 +61,7 @@ body {
   display: flex; align-items: center; gap: 8px;
   color: var(--text-3); font-size: 14px; cursor: pointer;
 }
-.search-input-wrap { flex: 1; }
+.search-input-wrap { flex: 1; margin: 0 8px; }
 .search-input {
   width: 100%; border: none; outline: none;
   background: rgba(255,255,255,.25); color: #fff;
@@ -237,10 +238,12 @@ body {
 .tabbar-item { flex: 1; text-align: center; font-size: 11px; color: var(--text-3); cursor: pointer; }
 .tabbar-item.on { color: var(--primary); }
 .tabbar-ico { display: block; font-size: 20px; margin-bottom: 2px; }
-.tabbar-publish { flex: 1; text-align: center; }
+.tabbar-publish { flex: 1; text-align: center; display: flex; align-items: center; justify-content: center; }
 .tabbar-plus {
-  width: 46px; height: 46px; background: var(--primary); color: #fff;
-  border-radius: 50%; font-size: 28px; line-height: 46px; margin: 0 auto;
+  width: 48px; height: 48px;
+  background: var(--primary); color: #fff;
+  border-radius: 50%; font-size: 26px;
+  display: flex; align-items: center; justify-content: center;
   margin-top: -18px; box-shadow: 0 4px 10px rgba(7,193,96,.4); cursor: pointer;
 }
 
